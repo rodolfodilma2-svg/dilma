@@ -165,6 +165,20 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    # Fase 0: Análise de logs via LLM (opcional, só se um arquivo for passado)
+    llm_summary = None
+    if args.log_file:
+        try:
+            from srodolfobarbosa.auto_repair.llm_log_analyst import LLMLogAnalyst
+
+            log_text = open(args.log_file, 'r', encoding='utf-8').read()
+            analyst = LLMLogAnalyst()
+            llm_res = analyst.analyze(log_text)
+            llm_summary = f"Causa raiz: {llm_res.causa_raiz}\nConfianca: {llm_res.confianca}\nExplicacao: {llm_res.explicacao}\nSugestao_patch: {llm_res.sugestao_patch}\nTests: {llm_res.comandos_de_teste}"
+            print("LLM analysis result:\n", llm_summary)
+        except Exception as e:
+            print("LLM analysis failed:", e)
+
     fix_style(unsafe=args.unsafe_fixes)
     results = run_tests_and_autofix_imports()
     print("--- Resultado final ---")
@@ -176,6 +190,8 @@ if __name__ == "__main__":
         create_branch_and_push(branch)
         title = "Auto repair: aplicar correções automáticas"
         body = "Este PR foi criado automaticamente pelo `scripts/auto_repair.py` para aplicar correções de formatação e dependências detectadas pelo CI."
+        if llm_summary:
+            body += "\n\nLLM analysis:\n" + llm_summary
 
         labels = [l.strip() for l in args.labels.split(",")] if args.labels else None
         assignees = [a.strip() for a in args.assignees.split(",")] if args.assignees else None
