@@ -1,0 +1,10 @@
+.env
+*.log
+backups/
+backups/*
+insights_pending/
+insights_verified/
+insights_rejected/
+pending_actions/
+__pycache__/
+*.pyc
