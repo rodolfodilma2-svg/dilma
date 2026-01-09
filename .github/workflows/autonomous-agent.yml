@@ -1,0 +1,117 @@
+name: 🤖 Agent Autônomo - Detecta e Corrige Erros
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Roda a cada 6 horas para varredura proativa
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Modo de execução'
+        required: false
+        default: 'validate'
+        type: choice
+        options:
+          - validate
+          - repair
+          - aggressive
+
+jobs:
+  autonomous-agent:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install dependencies
+        run: |
+          cd srodolfobarbosa
+          pip install -q --upgrade pip
+          pip install -q -r requirements.txt
+          pip install -q ruff black pytest python-dotenv requests
+      
+      - name: 🔍 Detect errors
+        id: detect
+        run: |
+          cd srodolfobarbosa
+          
+          echo "🧪 Running tests..."
+          python -m pytest test_smoke.py -v --tb=short 2>&1 | tee test_output.log || TEST_EXIT=$?
+          
+          echo "🔍 Running linters..."
+          ruff check . 2>&1 | tee lint_output.log || LINT_EXIT=$?
+          
+          # Export results
+          echo "test_exit=${TEST_EXIT:-0}" >> $GITHUB_OUTPUT
+          echo "lint_exit=${LINT_EXIT:-0}" >> $GITHUB_OUTPUT
+          
+          TEST_FAILED=$([[ ${TEST_EXIT:-0} -ne 0 ]] && echo "true" || echo "false")
+          LINT_FAILED=$([[ ${LINT_EXIT:-0} -ne 0 ]] && echo "true" || echo "false")
+          
+          echo "test_failed=$TEST_FAILED" >> $GITHUB_OUTPUT
+          echo "lint_failed=$LINT_FAILED" >> $GITHUB_OUTPUT
+      
+      - name: 🤖 Run Autonomous Repair Agent
+        if: steps.detect.outputs.test_failed == 'true' || steps.detect.outputs.lint_failed == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MODE: ${{ github.event.inputs.mode || 'repair' }}
+        run: |
+          cd srodolfobarbosa
+          
+          echo "🚀 Iniciando Agent Autônomo..."
+          echo "   Modo: ${MODE}"
+          
+          ARGS="--sandbox"
+          
+          if [ "${MODE}" = "aggressive" ]; then
+            ARGS="$ARGS --unsafe-fixes --auto-apply"
+            echo "   ⚠️ Modo AGRESSIVO: serão aplicados unsafe-fixes e auto-merge se validado"
+          elif [ "${MODE}" = "repair" ]; then
+            ARGS="$ARGS --auto-apply"
+            echo "   🔧 Modo REPARO: tentará mergear automaticamente se validado com confiança alta"
+          else
+            echo "   👀 Modo VALIDAÇÃO: apenas detecta problemas, sem aplicar mudanças"
+          fi
+          
+          python scripts/auto_repair.py $ARGS
+      
+      - name: 📊 Check sandbox results
+        if: always()
+        run: |
+          HISTORY_FILE="srodolfobarbosa/.sandbox/history.jsonl"
+          if [ -f "$HISTORY_FILE" ]; then
+            echo "## 📈 Sandbox Validation Results" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            LAST_RESULT=$(tail -1 "$HISTORY_FILE")
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            echo "$LAST_RESULT" | python -m json.tool >> $GITHUB_STEP_SUMMARY || echo "$LAST_RESULT" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Sem histórico de sandbox (primeira execução?)"
+          fi
+      
+      - name: 📝 Create summary
+        if: always()
+        run: |
+          echo "## 🤖 Autonomous Agent Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Test Status**: ${{ steps.detect.outputs.test_failed }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Lint Status**: ${{ steps.detect.outputs.lint_failed }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Agent Mode**: ${{ github.event.inputs.mode || 'repair' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Timestamp**: $(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
