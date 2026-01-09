@@ -2,7 +2,7 @@ import pytest
 
 pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient
-from deus import app
+from srodolfobarbosa.deus import app
 
 client = TestClient(app)
 
