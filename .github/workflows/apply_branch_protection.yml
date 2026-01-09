@@ -1,0 +1,32 @@
+name: Apply branch protection
+
+on:
+  workflow_dispatch:
+
+jobs:
+  apply-protection:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - name: Apply branch protection via API
+        env:
+          ADMIN_GH_TOKEN: ${{ secrets.ADMIN_GH_TOKEN }}
+          REPO: ${{ github.repository }}
+          BRANCH: main
+        run: |
+          if [ -z "${ADMIN_GH_TOKEN}" ]; then
+            echo "ADMIN_GH_TOKEN secret not found. Please add it in Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+
+          echo "Applying branch protection to ${REPO}:${BRANCH}..."
+
+          curl -s -X PUT -H "Accept: application/vnd.github+json" -H "Authorization: token ${ADMIN_GH_TOKEN}" \
+            https://api.github.com/repos/${REPO}/branches/${BRANCH}/protection \
+            -d '{"required_status_checks":{"strict":true,"contexts":["CI"]},"enforce_admins":true,"required_pull_request_reviews":{"dismiss_stale_reviews":true,"require_code_owner_reviews":true,"required_approving_review_count":1},"restrictions":null}' \
+            -o /tmp/protection_resp.json
+
+          echo "Response:"
+          jq . /tmp/protection_resp.json || cat /tmp/protection_resp.json

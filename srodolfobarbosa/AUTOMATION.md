@@ -14,7 +14,8 @@ Use com cautela: o script pode instalar pacotes automaticamente se a variável `
 
 ## Proteção de branch e revisões (observações)
 
-- Tentei aplicar regras de proteção na branch `main` (exigir revisões e code owner reviews) via API, mas recebi um erro de permissão (403). Isso requer permissões administrativas no repositório. Se quiser que eu aplique as regras via API, forneça um token com escopo adequado ou aplique manualmente: *Settings → Branches → Add rule* e marque **Require pull request reviews** e **Require review from Code Owners**.
+- Para aplicar proteção de branch via API é necessário um token com permissões administrativas. Se preferir que eu aplique automaticamente, adicione um secret `ADMIN_GH_TOKEN` com um token criado para administração do repositório (escopo `repo`).
+- Criei um workflow manual (`.github/workflows/apply_branch_protection.yml`) que aplica proteção na branch `main` quando disparado. Após adicionar o secret `ADMIN_GH_TOKEN`, use *Actions → Apply branch protection → Run workflow* para executar a mudança de forma segura.
 - Como mitigação parcial, adicionei um `CODEOWNERS` em `.github/CODEOWNERS` para solicitar automaticamente revisão de maintainers em mudanças no diretório `srodolfobarbosa/`.
 
 ## Auto-merge e rotulagem

@@ -38,6 +38,10 @@ def fix_style(unsafe=False):
 import os
 import time
 import argparse
+from dotenv import load_dotenv
+
+# load .env when present (local development); in CI the secrets are set in env
+load_dotenv()
 
 
 def run_tests_and_autofix_imports():
