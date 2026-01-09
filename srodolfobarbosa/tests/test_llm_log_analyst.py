@@ -1,4 +1,9 @@
 import pytest
+import sys
+import os
+# ensure repo root is on sys.path for imports when running tests in CI
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+# Now the project root is on sys.path; importing top-level modules like `deus` will work for tests that expect that layout.
 from srodolfobarbosa.auto_repair.llm_log_analyst import LLMLogAnalyst
 
 
