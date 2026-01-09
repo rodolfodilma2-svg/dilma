@@ -29,11 +29,18 @@ jobs:
           python -m pip install --no-cache-dir -r requirements.txt
       - name: Run auto_repair (try to fix and open PR)
         env:
-          AUTO_INSTALL: true
+          AUTO_INSTALL: ${{ vars.AUTO_INSTALL | default('true') }}
+          AGGRESSIVE_FIXES: ${{ vars.AGGRESSIVE_FIXES | default('false') }}
+          AUTO_REPAIR_LABELS: ${{ vars.AUTO_REPAIR_LABELS | default('auto-repair') }}
+          AUTO_REPAIR_ASSIGNEES: ${{ vars.AUTO_REPAIR_ASSIGNEES || '' }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          python scripts/auto_repair.py --open-pr || true
+          ARGS="--open-pr --labels \"${AUTO_REPAIR_LABELS}\" --assignees \"${AUTO_REPAIR_ASSIGNEES}\" --auto-merge"
+          if [ "${AGGRESSIVE_FIXES}" = "true" ]; then
+            ARGS="$ARGS --unsafe-fixes"
+          fi
+          python scripts/auto_repair.py $ARGS || true
       - name: Create issue to notify maintainers
         uses: actions/github-script@v7
         with:
