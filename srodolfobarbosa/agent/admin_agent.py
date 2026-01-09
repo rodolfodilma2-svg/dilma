@@ -6,6 +6,7 @@ configured with an administrative token stored securely (e.g., in Actions
 secrets or local .env file). It intentionally requires explicit invocation
 and includes safeguards (no-op if no token).
 """
+
 from __future__ import annotations
 
 import json
@@ -23,12 +24,19 @@ class AdminAgent:
 
     def _request(self, method: str, path: str, data: Optional[Dict] = None):
         if not self.token:
-            raise RuntimeError("ADMIN_GH_TOKEN not set; cannot perform admin operations")
+            raise RuntimeError(
+                "ADMIN_GH_TOKEN not set; cannot perform admin operations"
+            )
         if not self.repo:
-            raise RuntimeError("GITHUB_REPOSITORY not set; cannot perform admin operations")
+            raise RuntimeError(
+                "GITHUB_REPOSITORY not set; cannot perform admin operations"
+            )
         owner, repo_name = self.repo.split("/")
         url = f"https://api.github.com{path}"
-        headers = {"Authorization": f"token {self.token}", "Accept": "application/vnd.github+json"}
+        headers = {
+            "Authorization": f"token {self.token}",
+            "Accept": "application/vnd.github+json",
+        }
         body = None
         if data is not None:
             body = json.dumps(data).encode("utf-8")
@@ -70,16 +78,32 @@ class AdminAgent:
         path = f"/repos/{self.repo}/branches/{branch}/protection"
         return self._request("GET", path)
 
-    def enable_auto_merge(self, pull_request_node_id: str, merge_method: str = "SQUASH") -> Dict:
+    def enable_auto_merge(
+        self, pull_request_node_id: str, merge_method: str = "SQUASH"
+    ) -> Dict:
         # Uses GraphQL mutation to enable auto-merge on a PR
         if not self.token:
             raise RuntimeError("ADMIN_GH_TOKEN not set")
         graphql_url = "https://api.github.com/graphql"
         mutation = {
             "query": "mutation enableAutoMerge($input: EnablePullRequestAutoMergeInput!){ enablePullRequestAutoMerge(input: $input){clientMutationId} }",
-            "variables": {"input": {"pullRequestId": pull_request_node_id, "mergeMethod": merge_method}},
+            "variables": {
+                "input": {
+                    "pullRequestId": pull_request_node_id,
+                    "mergeMethod": merge_method,
+                }
+            },
         }
-        headers = {"Authorization": f"bearer {self.token}", "Accept": "application/vnd.github+json", "Content-Type": "application/json"}
-        req = urllib.request.Request(graphql_url, data=json.dumps(mutation).encode("utf-8"), headers=headers, method="POST")
+        headers = {
+            "Authorization": f"bearer {self.token}",
+            "Accept": "application/vnd.github+json",
+            "Content-Type": "application/json",
+        }
+        req = urllib.request.Request(
+            graphql_url,
+            data=json.dumps(mutation).encode("utf-8"),
+            headers=headers,
+            method="POST",
+        )
         with urllib.request.urlopen(req) as resp:
             return json.loads(resp.read().decode("utf-8"))

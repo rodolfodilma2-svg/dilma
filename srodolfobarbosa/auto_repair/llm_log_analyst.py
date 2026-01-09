@@ -9,6 +9,7 @@ Usage:
 
 The implementation includes a simple file cache and a 'mock' provider for local testing.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -91,21 +92,39 @@ class LLMLogAnalyst:
                     "provide the test commands to validate the fix, and give a confidence score (0-1).\n\n"
                     f"LOG:\n{text[:4000]}"
                 )
-                resp = openai.ChatCompletion.create(model=os.environ.get("OPENAI_MODEL", "gpt-4o-mini"), messages=[{"role":"user","content":prompt}], timeout=self.timeout)
+                resp = openai.ChatCompletion.create(
+                    model=os.environ.get("OPENAI_MODEL", "gpt-4o-mini"),
+                    messages=[{"role": "user", "content": prompt}],
+                    timeout=self.timeout,
+                )
                 content = resp.choices[0].message.content
                 # Expect the model to return a JSON — attempt to parse
                 try:
                     obj = json.loads(content)
                 except Exception:
                     # fallback: wrap model text
-                    obj = {"causa_raiz": content, "sugestao_patch": None, "comandos_de_teste": None, "confianca": 0.5, "explicacao": content}
+                    obj = {
+                        "causa_raiz": content,
+                        "sugestao_patch": None,
+                        "comandos_de_teste": None,
+                        "confianca": 0.5,
+                        "explicacao": content,
+                    }
                 return obj
             except Exception as e:
-                return {"causa_raiz": f"LLM error: {e}", "sugestao_patch": None, "comandos_de_teste": None, "confianca": 0.0, "explicacao": str(e)}
+                return {
+                    "causa_raiz": f"LLM error: {e}",
+                    "sugestao_patch": None,
+                    "comandos_de_teste": None,
+                    "confianca": 0.0,
+                    "explicacao": str(e),
+                }
         else:
             raise ValueError(f"Provider {self.provider} not supported")
 
-    def analyze(self, log_text: str, metadata: Optional[Dict] = None, use_cache: bool = True) -> LLMLogResult:
+    def analyze(
+        self, log_text: str, metadata: Optional[Dict] = None, use_cache: bool = True
+    ) -> LLMLogResult:
         if metadata is None:
             metadata = {}
         if use_cache:
